@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Asena</title>
+<meta name="description" content="Waternet ekibinin iş takip uygulaması">
+<meta name="theme-color" content="#0B7FB3">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Asena">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Figtree:wght@400;600&display=swap">
+<script>
+  /* ============================================================
+     BURAYI DOLDUR: Asena'nın /exec ile biten linki
+     (Apps Script → Dağıt → Dağıtımları yönet → Web uygulaması URL'si)
+     ============================================================ */
+  const ASENA_URL = 'https://script.google.com/a/macros/waternet.com.tr/s/AKfycbwtDW12WNhel3jo4vlarLLJvGLkVjzpDVhnRVlrAqamnoDwpR-nU49pFwASRRJUFhWAtQ/exec';
+</script>
+<style>
+  :root{--bg1:#20B4E4;--bg2:#0A6FA3;--fg:#fff}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:linear-gradient(160deg,var(--bg1),var(--bg2));color:var(--fg);font-family:Figtree,system-ui,sans-serif;
+    display:flex;align-items:center;justify-content:center;padding:24px 16px calc(24px + env(safe-area-inset-bottom))}
+  main{width:100%;max-width:380px;text-align:center}
+  .logo{width:132px;height:132px;border-radius:30px;box-shadow:0 14px 40px rgba(0,40,70,.35);display:block;margin:0 auto 26px}
+  h1{font-family:Comfortaa,Figtree,sans-serif;font-size:40px;margin:0;letter-spacing:.01em}
+  p{margin:10px 0 0;color:#D8F3FC;font-size:15px;line-height:1.5}
+  .btn{display:block;width:100%;margin-top:30px;padding:16px;border-radius:14px;border:0;background:#fff;color:#0A6FA3;
+    font:600 17px Figtree,system-ui,sans-serif;text-decoration:none;box-shadow:0 8px 24px rgba(0,40,70,.25)}
+  .btn:active{transform:scale(.98)}
+  .hint{margin-top:22px;font-size:13px;color:#BFE9F8}
+  .spin{width:22px;height:22px;border:3px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;
+    animation:r 0.8s linear infinite;margin:28px auto 0}
+  @keyframes r{to{transform:rotate(360deg)}}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <img class="logo" src="icons/icon-512.png" alt="Asena">
+  <h1>Asena</h1>
+  <p>Waternet iş takip</p>
+  <div class="spin" id="spin" hidden></div>
+  <a class="btn" id="go" href="#">Asena'yı aç</a>
+  <div class="hint" id="hint">Waternet Google hesabınla giriş yapman istenebilir.</div>
+</main>
+<script>
+  const go = document.getElementById('go');
+  go.href = ASENA_URL;
+  const isApp = matchMedia('(display-mode: standalone)').matches || new URLSearchParams(location.search).has('app') ||
+                document.referrer.startsWith('android-app://');
+  // Uygulama olarak açıldıysa doğrudan Asena'ya geç
+  if (isApp && ASENA_URL.indexOf('BURAYA') < 0) {
+    document.getElementById('spin').hidden = false;
+    go.hidden = true;
+    location.replace(ASENA_URL);
+  }
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
