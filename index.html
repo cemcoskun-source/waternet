@@ -7,6 +7,7 @@
 <meta name="description" content="Waternet ekibinin iş takip uygulaması">
 <meta name="theme-color" content="#0B7FB3">
 <link rel="manifest" href="manifest.webmanifest">
+<script src="config.js"></script>
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -34,6 +35,9 @@
     font:600 17px Figtree,system-ui,sans-serif;text-decoration:none;box-shadow:0 8px 24px rgba(0,40,70,.25)}
   .btn:active{transform:scale(.98)}
   .hint{margin-top:22px;font-size:13px;color:#BFE9F8}
+  .bell{margin-top:26px;padding:16px;border-radius:16px;background:rgba(255,255,255,.14);text-align:left}
+  .bell b{display:block;font-size:16px}.bell span{display:block;font-size:13.5px;color:#D8F3FC;margin-top:4px;line-height:1.45}
+  .bell .btn{margin-top:14px}.link{display:block;margin:12px auto 0;background:none;border:0;color:#D8F3FC;font:500 14px Figtree,system-ui,sans-serif;text-decoration:underline;cursor:pointer}
   .spin{width:22px;height:22px;border:3px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;
     animation:r 0.8s linear infinite;margin:28px auto 0}
   @keyframes r{to{transform:rotate(360deg)}}
@@ -46,21 +50,66 @@
   <h1>Asena</h1>
   <p>Waternet iş takip</p>
   <div class="spin" id="spin" hidden></div>
+  <div class="bell" id="bell" hidden>
+    <b>🔔 Bildirimleri aç</b>
+    <span>Yeni iş, atama ve yorumlar telefonuna bildirim olarak gelsin.</span>
+    <button class="btn" id="allow" type="button">Bildirimlere izin ver</button>
+    <button class="link" id="later" type="button">Şimdi değil</button>
+  </div>
   <a class="btn" id="go" href="#">Asena'yı aç</a>
   <div class="hint" id="hint">Waternet Google hesabınla giriş yapman istenebilir.</div>
 </main>
 <script>
-  const go = document.getElementById('go');
-  go.href = ASENA_URL;
+  const $ = id => document.getElementById(id);
+  const ls = { get: k => { try { return localStorage.getItem(k) } catch (e) { return null } },
+               set: (k, v) => { try { localStorage.setItem(k, v) } catch (e) {} } };
   const isApp = matchMedia('(display-mode: standalone)').matches || new URLSearchParams(location.search).has('app') ||
                 document.referrer.startsWith('android-app://');
-  // Uygulama olarak açıldıysa doğrudan Asena'ya geç
-  if (isApp && ASENA_URL.indexOf('BURAYA') < 0) {
-    document.getElementById('spin').hidden = false;
-    go.hidden = true;
-    location.replace(ASENA_URL);
+  const PUSH = 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window &&
+               self.FB_CONFIG && FB_CONFIG.apiKey !== 'BURAYA';
+  let swReg = null;
+  const swReady = 'serviceWorker' in navigator ? navigator.serviceWorker.register('sw.js').then(r => (swReg = r)).catch(() => null) : Promise.resolve(null);
+
+  function loadFb() {
+    if (window.firebase && firebase.messaging) return Promise.resolve();
+    const add = src => new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+    const b = 'https://www.gstatic.com/firebasejs/' + FB_VER + '/';
+    return add(b + 'firebase-app-compat.js').then(() => add(b + 'firebase-messaging-compat.js'));
   }
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  async function getToken() {
+    await loadFb(); const reg = await swReady; if (!reg) return null;
+    await navigator.serviceWorker.ready;
+    if (!firebase.apps.length) firebase.initializeApp(FB_CONFIG);
+    return firebase.messaging().getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+  }
+  const timeout = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r(null), ms))]);
+
+  async function launch() {
+    $('spin').hidden = false; $('go').hidden = true; $('bell').hidden = true;
+    let url = ASENA_URL;
+    try {
+      if (PUSH && Notification.permission === 'granted') {
+        const tk = await timeout(getToken(), 8000);
+        const old = ls.get('asenaTok'), at = +ls.get('asenaTokAt') || 0;
+        if (tk && (tk !== old || Date.now() - at > 7 * 864e5)) {      // yeni kod ya da haftalık yenileme
+          url += (url.indexOf('?') < 0 ? '?' : '&') + 'push=' + encodeURIComponent(tk);
+          ls.set('asenaTok', tk); ls.set('asenaTokAt', String(Date.now()));
+        }
+      }
+    } catch (e) { console.warn(e); }
+    location.replace(url);
+  }
+
+  $('go').addEventListener('click', e => { e.preventDefault(); launch(); });
+  $('allow').addEventListener('click', async () => {
+    try { await Notification.requestPermission(); } catch (e) {}
+    launch();
+  });
+  $('later').addEventListener('click', () => { ls.set('asenaNoPush', '1'); launch(); });
+
+  const ask = PUSH && Notification.permission === 'default' && !ls.get('asenaNoPush');
+  if (ask) { $('bell').hidden = false; $('go').hidden = true; }
+  else if (isApp && ASENA_URL.indexOf('BURAYA') < 0) launch();
 </script>
 </body>
 </html>
